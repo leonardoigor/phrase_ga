@@ -24,7 +24,7 @@ Veja em tempo real como seleção natural, crossover e mutação levam à evolu�
 
 ## 📸 Preview
 
-![Genetic Algorithm Visualizer Screenshot](./raw/main/screenshot.png)  
+![Genetic Algorithm Visualizer Screenshot](https://github.com/leonardoigor/phrase_ga/blob/main/raw/screenshot.png)  
 *(Adicione essa imagem ao seu repositório como `screenshot.png` para ela aparecer aqui!)*
 
 ---
