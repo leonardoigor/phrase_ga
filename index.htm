@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Genetic Algorithm Visualizer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .dna-char {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            text-align: center;
+            line-height: 20px;
+            margin: 2px;
+            border-radius: 4px;
+            font-weight: bold;
+            font-family: monospace;
+        }
+
+        .fitness-bar {
+            height: 6px;
+            border-radius: 3px;
+            transition: width 0.3s ease;
+        }
+
+        .chromosome-container {
+            transition: all 0.3s ease;
+        }
+
+        .chromosome-container:hover {
+            transform: scale(1.02);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+
+        .mutation {
+            animation: mutationFlash 0.5s;
+        }
+
+        @keyframes mutationFlash {
+            0% {
+                background-color: #f59e0b;
+            }
+
+            100% {
+                background-color: inherit;
+            }
+        }
+
+        .crossover-line {
+            position: absolute;
+            height: 2px;
+            background-color: #3b82f6;
+            transform-origin: left center;
+            z-index: 10;
+        }
+    </style>
+</head>
+
+<body class="bg-gray-100 min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <div class="max-w-4xl mx-auto">
+            <h1 class="text-3xl font-bold text-center text-indigo-700 mb-2">Genetic Algorithm Visualizer</h1>
+            <p class="text-center text-gray-600 mb-8">Watch evolution in action as the algorithm finds the target string
+            </p>
+
+            <div class="bg-white rounded-lg shadow-lg p-6 mb-8">
+                <div class="flex flex-wrap gap-4 mb-6">
+                    <div class="flex-1 min-w-[200px]">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Target String</label>
+                        <input type="text" id="targetString" value="GENETIC_ALGORITHM"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                    </div>
+                    <div class="flex-1 min-w-[200px]">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Population Size</label>
+                        <input type="number" id="populationSize" value="50" min="10" max="200"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                    </div>
+                    <div class="flex-1 min-w-[200px]">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Mutation Rate (%)</label>
+                        <input type="number" id="mutationRate" value="5" min="0" max="100"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                    </div>
+                </div>
+
+                <div class="flex justify-center space-x-4">
+                    <button id="startBtn"
+                        class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2">
+                        <i class="fas fa-play mr-2"></i> Start
+                    </button>
+                    <button id="pauseBtn"
+                        class="px-4 py-2 bg-yellow-500 text-white rounded-md hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2"
+                        disabled>
+                        <i class="fas fa-pause mr-2"></i> Pause
+                    </button>
+                    <button id="resetBtn"
+                        class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2">
+                        <i class="fas fa-redo mr-2"></i> Reset
+                    </button>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-lg shadow-lg p-6 mb-8">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-xl font-semibold text-gray-800">Generation: <span id="generationCount">0</span></h2>
+                    <div class="text-sm text-gray-500">Best Fitness: <span id="bestFitness">0</span>%</div>
+                </div>
+
+                <div class="mb-4">
+                    <div class="flex justify-between text-xs text-gray-500 mb-1">
+                        <span>Progress</span>
+                        <span id="progressPercent">0%</span>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-2.5">
+                        <div id="progressBar" class="bg-indigo-600 h-2.5 rounded-full" style="width: 0%"></div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <h3 class="text-sm font-medium text-gray-700 mb-2">Best Chromosome</h3>
+                        <div id="bestChromosome"
+                            class="p-3 bg-gray-50 rounded-md border border-gray-200 font-mono text-center"></div>
+                    </div>
+                    <div>
+                        <h3 class="text-sm font-medium text-gray-700 mb-2">Target Chromosome</h3>
+                        <div id="targetChromosome"
+                            class="p-3 bg-gray-50 rounded-md border border-gray-200 font-mono text-center"></div>
+                    </div>
+                </div>
+
+                <div class="relative" id="populationContainer">
+                    <h3 class="text-sm font-medium text-gray-700 mb-2">Population Preview</h3>
+                    <div id="populationPreview" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3"></div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-lg shadow-lg p-6">
+                <h2 class="text-xl font-semibold text-gray-800 mb-4">Statistics</h2>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div class="bg-indigo-50 p-4 rounded-lg">
+                        <div class="text-indigo-800 text-sm font-medium">Avg Fitness</div>
+                        <div class="text-2xl font-bold text-indigo-600" id="avgFitness">0%</div>
+                    </div>
+                    <div class="bg-green-50 p-4 rounded-lg">
+                        <div class="text-green-800 text-sm font-medium">Max Fitness</div>
+                        <div class="text-2xl font-bold text-green-600" id="maxFitness">0%</div>
+                    </div>
+                    <div class="bg-yellow-50 p-4 rounded-lg">
+                        <div class="text-yellow-800 text-sm font-medium">Mutations</div>
+                        <div class="text-2xl font-bold text-yellow-600" id="mutationCount">0</div>
+                    </div>
+                    <div class="bg-purple-50 p-4 rounded-lg">
+                        <div class="text-purple-800 text-sm font-medium">Crossovers</div>
+                        <div class="text-2xl font-bold text-purple-600" id="crossoverCount">0</div>
+                    </div>
+                </div>
+
+                <div class="mt-6">
+                    <canvas id="fitnessChart" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        // Genetic Algorithm Implementation
+        class GeneticAlgorithm {
+            constructor(target, populationSize, mutationRate) {
+                this.target = target;
+                this.populationSize = populationSize;
+                this.mutationRate = mutationRate;
+                this.population = [];
+                this.generation = 0;
+                this.bestChromosome = null;
+                this.bestFitness = 0;
+                this.mutationCount = 0;
+                this.crossoverCount = 0;
+                this.fitnessHistory = [];
+                this.avgFitnessHistory = [];
+
+                // Possible genes (characters)
+                this.genes = "ABCDEFGHIJKLMNOPQRSTUVWXYZ_0123456789";
+
+                this.initializePopulation();
+            }
+
+            initializePopulation() {
+                this.population = [];
+                for (let i = 0; i < this.populationSize; i++) {
+                    let chromosome = "";
+                    for (let j = 0; j < this.target.length; j++) {
+                        chromosome += this.genes.charAt(Math.floor(Math.random() * this.genes.length));
+                    }
+                    this.population.push(chromosome);
+                }
+                this.evaluatePopulation();
+            }
+
+            evaluatePopulation() {
+                let totalFitness = 0;
+                let maxFitness = 0;
+
+                this.population.forEach(chromosome => {
+                    const fitness = this.calculateFitness(chromosome);
+                    totalFitness += fitness;
+
+                    if (fitness > maxFitness) {
+                        maxFitness = fitness;
+                        this.bestChromosome = chromosome;
+                        this.bestFitness = maxFitness;
+                    }
+                });
+
+                this.fitnessHistory.push(this.bestFitness);
+                this.avgFitnessHistory.push(totalFitness / this.population.length);
+
+                return {
+                    bestFitness: this.bestFitness,
+                    avgFitness: totalFitness / this.population.length,
+                    bestChromosome: this.bestChromosome
+                };
+            }
+
+            calculateFitness(chromosome) {
+                let score = 0;
+                for (let i = 0; i < chromosome.length; i++) {
+                    if (chromosome.charAt(i) === this.target.charAt(i)) {
+                        score++;
+                    }
+                }
+                return (score / this.target.length) * 100;
+            }
+
+            selectParent() {
+                // Tournament selection
+                const tournamentSize = 5;
+                let tournament = [];
+
+                for (let i = 0; i < tournamentSize; i++) {
+                    const randomIndex = Math.floor(Math.random() * this.population.length);
+                    tournament.push({
+                        chromosome: this.population[randomIndex],
+                        fitness: this.calculateFitness(this.population[randomIndex])
+                    });
+                }
+
+                tournament.sort((a, b) => b.fitness - a.fitness);
+                return tournament[0].chromosome;
+            }
+
+            crossover(parent1, parent2) {
+                this.crossoverCount++;
+
+                // Single-point crossover
+                const crossoverPoint = Math.floor(Math.random() * parent1.length);
+                const child1 = parent1.substring(0, crossoverPoint) + parent2.substring(crossoverPoint);
+                const child2 = parent2.substring(0, crossoverPoint) + parent1.substring(crossoverPoint);
+
+                return [child1, child2];
+            }
+
+            mutate(chromosome) {
+                let mutated = "";
+                for (let i = 0; i < chromosome.length; i++) {
+                    if (Math.random() < this.mutationRate / 100) {
+                        this.mutationCount++;
+                        mutated += this.genes.charAt(Math.floor(Math.random() * this.genes.length));
+                    } else {
+                        mutated += chromosome.charAt(i);
+                    }
+                }
+                return mutated;
+            }
+
+            evolve() {
+                this.generation++;
+                const newPopulation = [];
+
+                // Elitism: keep the best chromosome
+                newPopulation.push(this.bestChromosome);
+
+                while (newPopulation.length < this.populationSize) {
+                    const parent1 = this.selectParent();
+                    const parent2 = this.selectParent();
+
+                    const [child1, child2] = this.crossover(parent1, parent2);
+
+                    newPopulation.push(this.mutate(child1));
+                    if (newPopulation.length < this.populationSize) {
+                        newPopulation.push(this.mutate(child2));
+                    }
+                }
+
+                this.population = newPopulation;
+                return this.evaluatePopulation();
+            }
+
+            isSolutionFound() {
+                return this.bestFitness === 100;
+            }
+        }
+
+        // UI Controller
+        class GAController {
+            constructor() {
+                this.ga = null;
+                this.animationId = null;
+                this.isRunning = false;
+                this.chart = null;
+
+                this.initElements();
+                this.initEventListeners();
+                this.updateTargetChromosome();
+            }
+
+            initElements() {
+                this.elements = {
+                    startBtn: document.getElementById('startBtn'),
+                    pauseBtn: document.getElementById('pauseBtn'),
+                    resetBtn: document.getElementById('resetBtn'),
+                    targetString: document.getElementById('targetString'),
+                    populationSize: document.getElementById('populationSize'),
+                    mutationRate: document.getElementById('mutationRate'),
+                    generationCount: document.getElementById('generationCount'),
+                    bestFitness: document.getElementById('bestFitness'),
+                    progressPercent: document.getElementById('progressPercent'),
+                    progressBar: document.getElementById('progressBar'),
+                    bestChromosome: document.getElementById('bestChromosome'),
+                    targetChromosome: document.getElementById('targetChromosome'),
+                    populationPreview: document.getElementById('populationPreview'),
+                    avgFitness: document.getElementById('avgFitness'),
+                    maxFitness: document.getElementById('maxFitness'),
+                    mutationCount: document.getElementById('mutationCount'),
+                    crossoverCount: document.getElementById('crossoverCount'),
+                    fitnessChart: document.getElementById('fitnessChart'),
+                    populationContainer: document.getElementById('populationContainer')
+                };
+            }
+
+            initEventListeners() {
+                this.elements.startBtn.addEventListener('click', () => this.start());
+                this.elements.pauseBtn.addEventListener('click', () => this.pause());
+                this.elements.resetBtn.addEventListener('click', () => this.reset());
+                this.elements.targetString.addEventListener('input', () => this.updateTargetChromosome());
+            }
+
+            updateTargetChromosome() {
+                const target = this.elements.targetString.value;
+                this.elements.targetChromosome.innerHTML = '';
+
+                for (let i = 0; i < target.length; i++) {
+                    const charSpan = document.createElement('span');
+                    charSpan.className = 'dna-char bg-gray-200 text-gray-800';
+                    charSpan.textContent = target.charAt(i);
+                    this.elements.targetChromosome.appendChild(charSpan);
+                }
+            }
+
+            start() {
+                if (this.isRunning) return;
+
+                const target = this.elements.targetString.value.toUpperCase();
+                const populationSize = parseInt(this.elements.populationSize.value);
+                const mutationRate = parseInt(this.elements.mutationRate.value);
+
+                if (!target) {
+                    alert('Please enter a target string');
+                    return;
+                }
+
+                if (this.ga === null || this.ga.target !== target ||
+                    this.ga.populationSize !== populationSize) {
+                    this.ga = new GeneticAlgorithm(target, populationSize, mutationRate);
+                    this.initChart();
+                } else {
+                    this.ga.mutationRate = mutationRate;
+                }
+
+                this.isRunning = true;
+                this.elements.startBtn.disabled = true;
+                this.elements.pauseBtn.disabled = false;
+
+                this.runGeneration();
+            }
+
+            pause() {
+                this.isRunning = false;
+                if (this.animationId) {
+                    cancelAnimationFrame(this.animationId);
+                    this.animationId = null;
+                }
+                this.elements.startBtn.disabled = false;
+                this.elements.pauseBtn.disabled = true;
+            }
+
+            reset() {
+                this.pause();
+                this.ga = null;
+                this.elements.generationCount.textContent = '0';
+                this.elements.bestFitness.textContent = '0';
+                this.elements.progressPercent.textContent = '0%';
+                this.elements.progressBar.style.width = '0%';
+                this.elements.bestChromosome.innerHTML = '';
+                this.elements.populationPreview.innerHTML = '';
+                this.elements.avgFitness.textContent = '0%';
+                this.elements.maxFitness.textContent = '0%';
+                this.elements.mutationCount.textContent = '0';
+                this.elements.crossoverCount.textContent = '0';
+
+                if (this.chart) {
+                    this.chart.destroy();
+                    this.chart = null;
+                }
+
+                this.updateTargetChromosome();
+            }
+
+            runGeneration() {
+                if (!this.isRunning) return;
+
+                const result = this.ga.evolve();
+
+                // Update UI
+                this.elements.generationCount.textContent = this.ga.generation;
+                this.elements.bestFitness.textContent = result.bestFitness.toFixed(1);
+                this.elements.avgFitness.textContent = result.avgFitness.toFixed(1) + '%';
+                this.elements.maxFitness.textContent = result.bestFitness.toFixed(1) + '%';
+                this.elements.mutationCount.textContent = this.ga.mutationCount;
+                this.elements.crossoverCount.textContent = this.ga.crossoverCount;
+
+                const progress = result.bestFitness;
+                this.elements.progressPercent.textContent = progress.toFixed(1) + '%';
+                this.elements.progressBar.style.width = progress + '%';
+
+                // Update best chromosome display
+                this.elements.bestChromosome.innerHTML = '';
+                for (let i = 0; i < result.bestChromosome.length; i++) {
+                    const charSpan = document.createElement('span');
+                    charSpan.className = 'dna-char ' +
+                        (result.bestChromosome.charAt(i) === this.ga.target.charAt(i) ?
+                            'bg-green-500 text-white' : 'bg-red-500 text-white');
+                    charSpan.textContent = result.bestChromosome.charAt(i);
+                    this.elements.bestChromosome.appendChild(charSpan);
+                }
+
+                // Update population preview
+                this.updatePopulationPreview();
+
+                // Update chart
+                this.updateChart();
+
+                // Check if solution found
+                if (this.ga.isSolutionFound()) {
+                    this.pause();
+                    this.showSuccess();
+                    return;
+                }
+
+                // Continue to next generation
+                this.animationId = requestAnimationFrame(() => this.runGeneration());
+            }
+
+            updatePopulationPreview() {
+                this.elements.populationPreview.innerHTML = '';
+
+                // Show top 6 chromosomes
+                const previewSize = 6;
+                const sortedPopulation = [...this.ga.population].sort((a, b) =>
+                    this.ga.calculateFitness(b) - this.ga.calculateFitness(a)
+                ).slice(0, previewSize);
+
+                sortedPopulation.forEach(chromosome => {
+                    const container = document.createElement('div');
+                    container.className = 'chromosome-container bg-gray-50 p-3 rounded-md border border-gray-200';
+
+                    const fitness = this.ga.calculateFitness(chromosome);
+
+                    // Chromosome string
+                    const chromosomeDiv = document.createElement('div');
+                    chromosomeDiv.className = 'flex justify-center mb-2';
+
+                    for (let i = 0; i < chromosome.length; i++) {
+                        const charSpan = document.createElement('span');
+                        charSpan.className = 'dna-char ' +
+                            (chromosome.charAt(i) === this.ga.target.charAt(i) ?
+                                'bg-green-500 text-white' : 'bg-gray-300 text-gray-800');
+                        charSpan.textContent = chromosome.charAt(i);
+                        chromosomeDiv.appendChild(charSpan);
+                    }
+
+                    // Fitness bar
+                    const fitnessBarContainer = document.createElement('div');
+                    fitnessBarContainer.className = 'w-full bg-gray-200 rounded-full h-2 mb-1';
+
+                    const fitnessBar = document.createElement('div');
+                    fitnessBar.className = 'fitness-bar bg-blue-500';
+                    fitnessBar.style.width = fitness + '%';
+                    fitnessBarContainer.appendChild(fitnessBar);
+
+                    // Fitness label
+                    const fitnessLabel = document.createElement('div');
+                    fitnessLabel.className = 'text-xs text-gray-500 text-right';
+                    fitnessLabel.textContent = fitness.toFixed(1) + '%';
+
+                    container.appendChild(chromosomeDiv);
+                    container.appendChild(fitnessBarContainer);
+                    container.appendChild(fitnessLabel);
+
+                    this.elements.populationPreview.appendChild(container);
+                });
+            }
+
+            initChart() {
+                if (this.chart) {
+                    this.chart.destroy();
+                }
+
+                const ctx = this.elements.fitnessChart.getContext('2d');
+                this.chart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: Array.from({ length: 50 }, (_, i) => i + 1),
+                        datasets: [
+                            {
+                                label: 'Best Fitness',
+                                data: [],
+                                borderColor: 'rgb(79, 70, 229)',
+                                backgroundColor: 'rgba(79, 70, 229, 0.1)',
+                                tension: 0.4,
+                                fill: true
+                            },
+                            {
+                                label: 'Average Fitness',
+                                data: [],
+                                borderColor: 'rgb(99, 102, 241)',
+                                backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                                tension: 0.4,
+                                fill: true
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: {
+                                position: 'top',
+                            },
+                            tooltip: {
+                                mode: 'index',
+                                intersect: false,
+                            }
+                        },
+                        scales: {
+                            y: {
+                                min: 0,
+                                max: 100,
+                                ticks: {
+                                    callback: function (value) {
+                                        return value + '%';
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+
+            updateChart() {
+                if (!this.chart) return;
+
+                // Update data
+                this.chart.data.datasets[0].data = this.ga.fitnessHistory;
+                this.chart.data.datasets[1].data = this.ga.avgFitnessHistory;
+
+                // Update labels if needed
+                if (this.ga.generation > this.chart.data.labels.length) {
+                    this.chart.data.labels.push(this.ga.generation);
+                }
+
+                // Update y-axis max if we're close to 100%
+                if (this.ga.bestFitness > 90) {
+                    this.chart.options.scales.y.max = 100;
+                }
+
+                this.chart.update();
+            }
+
+            showSuccess() {
+                const bestChromosome = this.elements.bestChromosome;
+                bestChromosome.classList.add('animate-pulse');
+
+                setTimeout(() => {
+                    bestChromosome.classList.remove('animate-pulse');
+                }, 2000);
+
+                // Show confetti effect
+                this.createConfetti();
+            }
+
+            createConfetti() {
+                const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
+
+                for (let i = 0; i < 100; i++) {
+                    const confetti = document.createElement('div');
+                    confetti.className = 'confetti';
+                    confetti.style.position = 'fixed';
+                    confetti.style.width = '10px';
+                    confetti.style.height = '10px';
+                    confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                    confetti.style.borderRadius = '50%';
+                    confetti.style.left = Math.random() * 100 + 'vw';
+                    confetti.style.top = '-10px';
+                    confetti.style.transform = 'rotate(' + Math.random() * 360 + 'deg)';
+                    confetti.style.zIndex = '1000';
+
+                    document.body.appendChild(confetti);
+
+                    const animation = confetti.animate([
+                        { top: '-10px', opacity: 1 },
+                        { top: '100vh', opacity: 0 }
+                    ], {
+                        duration: 2000 + Math.random() * 3000,
+                        easing: 'cubic-bezier(0.1, 0.8, 0.3, 1)'
+                    });
+
+                    animation.onfinish = () => confetti.remove();
+                }
+            }
+        }
+
+        // Initialize the controller when DOM is loaded
+        document.addEventListener('DOMContentLoaded', () => {
+            window.gaController = new GAController();
+        });
+    </script>
+</body>
+
+</html>
